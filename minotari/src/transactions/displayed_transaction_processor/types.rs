@@ -96,6 +96,7 @@ pub enum TransactionDisplayStatus {
     Cancelled,
     Reorganized,
     Rejected,
+    Locked,
 }
 
 impl TransactionDisplayStatus {
@@ -107,6 +108,7 @@ impl TransactionDisplayStatus {
             Self::Cancelled => "Cancelled",
             Self::Reorganized => "Reorganized",
             Self::Rejected => "Rejected",
+            Self::Locked => "Locked",
         }
     }
 }
@@ -129,6 +131,7 @@ pub struct DisplayedTransaction {
     /// Fee information (only populated for outgoing transactions).
     pub fee: Option<FeeInfo>,
     pub details: TransactionDetails,
+    pub lock_height: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

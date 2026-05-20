@@ -16,6 +16,7 @@ use utoipa::ToSchema;
 
 use crate::db::error::{WalletDbError, WalletDbResult};
 use crate::db::outputs::get_output_totals_for_account;
+use crate::db::scanned_tip_blocks::get_latest_scanned_tip_block_by_account;
 use crate::utils::{
     crypto::{decrypt_data, encrypt_data},
     fingerprint::calculate_fingerprint,
@@ -273,6 +274,10 @@ pub struct AccountBalance {
     /// The amount from incoming transactions that have not yet been confirmed.
     #[schema(schema_with = micro_minotari_schema)]
     pub unconfirmed: MicroMinotari,
+    /// The portion of the balance that is mined but still subject to an output
+    /// maturity (e.g. coinbase rewards) and therefore not yet spendable.
+    #[schema(schema_with = micro_minotari_schema)]
+    pub immature: MicroMinotari,
     /// The total sum of all incoming (credit) transactions.
     #[schema(schema_with = micro_minotari_schema)]
     pub total_credits: Option<MicroMinotari>,
@@ -296,25 +301,29 @@ pub fn get_balance(conn: &Connection, account_id: i64) -> WalletDbResult<Account
         "DB: Calculating account balance"
     );
     let history_agg = get_balance_aggregates_for_account(conn, account_id)?;
-    let (locked_amount, unconfirmed_amount, locked_and_unconfirmed_amount) =
-        get_output_totals_for_account(conn, account_id)?;
+    let tip_height = get_latest_scanned_tip_block_by_account(conn, account_id)?
+        .map(|b| b.height)
+        .unwrap_or(0);
+    let totals = get_output_totals_for_account(conn, account_id, tip_height)?;
 
     let total_credits: MicroMinotari = (history_agg.total_credits.unwrap_or_default() as u64).into();
     let total_debits: MicroMinotari = (history_agg.total_debits.unwrap_or_default() as u64).into();
     let total_balance = total_credits.saturating_sub(total_debits);
 
-    let unavailable_balance = locked_amount
-        .saturating_add(unconfirmed_amount)
-        .saturating_sub(locked_and_unconfirmed_amount);
-    let available_balance = total_balance.saturating_sub(unavailable_balance);
+    // Derive `available` from the ledger so it stays in sync with `total` even when
+    // the `outputs` table and the balance-change ledger drift (e.g. during reorg
+    // recovery, or in tests that seed only one side). `totals.available` is the
+    // direct outputs-table view and is exposed separately on `OutputTotals`.
+    let available_balance = total_balance.saturating_sub(totals.unavailable);
 
     let max_date_str = history_agg.max_date.map(format_timestamp);
 
     Ok(AccountBalance {
         total: total_balance,
         available: available_balance,
-        locked: locked_amount,
-        unconfirmed: unconfirmed_amount,
+        locked: totals.locked,
+        unconfirmed: totals.unconfirmed,
+        immature: totals.immature,
         total_credits: Some(total_credits),
         total_debits: Some(total_debits),
         max_height: history_agg.max_height,

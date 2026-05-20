@@ -34,6 +34,7 @@ pub struct DisplayedTransactionBuilder {
     coinbase_extra: Option<CoinBaseExtra>,
     memo_hex: Option<String>,
     sent_output_hashes: Vec<FixedHash>,
+    lock_height: u64,
 }
 
 impl DisplayedTransactionBuilder {
@@ -58,6 +59,11 @@ impl DisplayedTransactionBuilder {
 
     pub fn status(mut self, status: TransactionDisplayStatus) -> Self {
         self.status = Some(status);
+        self
+    }
+
+    pub fn lock_height(mut self, lock_height: u64) -> Self {
+        self.lock_height = lock_height;
         self
     }
 
@@ -182,6 +188,7 @@ impl DisplayedTransactionBuilder {
                 sent_output_hashes: self.sent_output_hashes,
                 sent_payrefs: payrefs,
             },
+            lock_height: self.lock_height,
         })
     }
 }

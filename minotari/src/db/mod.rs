@@ -73,10 +73,10 @@ pub use scanned_tip_blocks::{
 
 mod outputs;
 pub use outputs::{
-    DbOutput, DbWalletOutput, fetch_outputs_by_lock_request_id, fetch_unspent_outputs, get_active_outputs_from_height,
-    get_output_by_id, get_output_info_by_hash, get_output_info_by_hash_for_account, get_output_totals_for_account,
-    get_total_unspent_balance, get_unconfirmed_outputs, insert_output, lock_output, mark_output_confirmed,
-    soft_delete_outputs_from_height, unlock_outputs_for_request,
+    DbOutput, DbWalletOutput, OutputTotals, fetch_outputs_by_lock_request_id, fetch_unspent_outputs,
+    get_active_outputs_from_height, get_output_by_id, get_output_info_by_hash, get_output_info_by_hash_for_account,
+    get_output_totals_for_account, get_total_unspent_balance, get_unconfirmed_outputs, insert_output, lock_output,
+    mark_output_confirmed, soft_delete_outputs_from_height, unlock_outputs_for_request,
     unlock_outputs_for_request as unlock_outputs_for_pending_transaction, update_output_status,
 };
 

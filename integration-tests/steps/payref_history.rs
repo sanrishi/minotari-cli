@@ -10,7 +10,7 @@
 // 5. Restart NodeA connected to NodeB so it adopts the longer chain (reorg)
 // 6. Re-scan the wallet — the reorg handler saves old payrefs to payref_history
 // 7. Start the daemon and verify the old payref still resolves via history fallback
-
+#![allow(clippy::indexing_slicing)]
 use cucumber::{given, then, when};
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
