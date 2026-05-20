@@ -19,7 +19,6 @@ path = "src/bin/generate_openapi.rs"
 anyhow = "1.0.99"
 argon2 = { version = "0.6.0-rc.8", features = ["alloc"] }
 blake2 = "0.10"
-borsh = "1.5"
 digest = "0.10"
 phc = "0.6.1"
 axum = { version = "0.8.6", features = ["default", "http2", "macros"] }
