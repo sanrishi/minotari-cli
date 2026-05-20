@@ -126,6 +126,7 @@ pub mod daemon;
 pub mod db;
 pub mod http;
 pub mod log;
+pub mod migrate;
 pub mod models;
 pub mod scan;
 pub mod tasks;

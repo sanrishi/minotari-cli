@@ -696,6 +696,53 @@ pub enum Commands {
         #[arg(long, default_value_t = 86400)]
         seconds_to_lock: u64,
     },
+
+    /// Migrate an already-synced legacy console wallet database into this
+    /// wallet's database format.
+    ///
+    /// Reads the legacy console wallet's SQLite file (read-only), recovers the
+    /// master cipher seed using the provided source passphrase, and copies the
+    /// outputs and transaction history into a new account in the destination
+    /// database. The migrated account preserves the legacy random transaction
+    /// IDs as the user-facing display IDs, the same balance, and the same set
+    /// of unspent outputs - and sets the scan tip to the source's last
+    /// scanned block so the next scan does not re-process the entire chain.
+    ///
+    /// # Example
+    ///
+    /// ```bash
+    /// tari migrate-from-console-wallet \
+    ///     --source-db /path/to/console_wallet/console_wallet.sqlite3 \
+    ///     --source-password "old wallet password" \
+    ///     --account-name imported \
+    ///     --password "new wallet password"
+    /// ```
+    MigrateFromConsoleWallet {
+        /// Path to the legacy console wallet's SQLite database.
+        #[arg(long, help = "Path to the source console wallet SQLite database")]
+        source_db: PathBuf,
+
+        /// Passphrase that unlocks the source console wallet.
+        #[arg(long, help = "Source console wallet passphrase")]
+        source_password: String,
+
+        #[command(flatten)]
+        security: SecurityArgs,
+        #[command(flatten)]
+        db: DatabaseArgs,
+
+        /// Friendly name to give the new account in this wallet.
+        #[arg(short = 'a', long, help = "Account name for the migrated wallet")]
+        account_name: String,
+
+        /// Run the migration against an in-flight transaction but roll it
+        /// back instead of committing. Useful for checking the source DB
+        /// would migrate cleanly (balance match, no schema conflicts, no
+        /// tx_id collisions that need fallback ids) before touching the
+        /// destination wallet.
+        #[arg(long, help = "Validate the migration without writing the destination DB")]
+        dry_run: bool,
+    },
 }
 
 #[derive(Args, Debug)]

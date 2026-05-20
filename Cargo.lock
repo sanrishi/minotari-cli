@@ -3998,10 +3998,13 @@ dependencies = [
  "anyhow",
  "argon2 0.6.0-rc.8",
  "axum 0.8.6",
+ "blake2 0.10.6",
+ "borsh",
  "chacha20poly1305 0.11.0-rc.3",
  "chrono",
  "clap 4.5.49",
  "config",
+ "digest 0.10.7",
  "dirs-next 2.0.0",
  "hex",
  "hmac",
@@ -4039,6 +4042,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "wiremock",
+ "zeroize",
 ]
 
 [[package]]
