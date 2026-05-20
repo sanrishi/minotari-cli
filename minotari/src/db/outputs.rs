@@ -718,6 +718,7 @@ mod tests {
     #![allow(clippy::indexing_slicing)]
     #![allow(clippy::cast_lossless)]
     #![allow(clippy::cast_possible_wrap)]
+    #![allow(clippy::too_many_arguments)]
     use super::*;
     use crate::db::{create_account, get_account_by_name, init_db};
     use tari_common_types::seeds::cipher_seed::CipherSeed;
