@@ -60,6 +60,7 @@ pub struct MatchedOutput {
     /// `matched_output_id` exactly the way the scan path does.
     pub destination_output_id: Id,
     pub output_type: OutputType,
+    pub lock_height: u64,
 }
 
 /// All outputs the source wallet linked to one legacy `tx_id`. Empty vectors
@@ -188,6 +189,12 @@ pub fn convert_transaction(
             is_change: false,
         })
         .collect();
+    let mut lock_height = 0;
+    for output in &matched.received {
+        if lock_height < output.lock_height {
+            lock_height = output.lock_height;
+        }
+    }
 
     // Inputs list: matched spends, including the destination output id for
     // cross-reference (mirrors what `displayed_transaction_processor` would
@@ -256,6 +263,7 @@ pub fn convert_transaction(
             sent_output_hashes,
             sent_payrefs: Vec::new(),
         },
+        lock_height,
     };
 
     Ok(ConvertedTransaction { display })
@@ -302,14 +310,10 @@ fn map_status(status: LegacyTransactionStatus) -> TransactionDisplayStatus {
         Pending | Queued => TransactionDisplayStatus::Pending,
         Completed | Broadcast => TransactionDisplayStatus::Pending,
         MinedUnconfirmed | OneSidedUnconfirmed | CoinbaseUnconfirmed => TransactionDisplayStatus::Unconfirmed,
-        MinedConfirmed
-        | MinedConfirmedLocked
-        | OneSidedConfirmed
-        | OneSidedConfirmedLocked
-        | CoinbaseConfirmed
-        | CoinbaseConfirmedLocked => TransactionDisplayStatus::Confirmed,
+        MinedConfirmed | OneSidedConfirmed | CoinbaseConfirmed => TransactionDisplayStatus::Confirmed,
         Rejected => TransactionDisplayStatus::Rejected,
         Imported | CoinbaseNotInBlockChain | Coinbase => TransactionDisplayStatus::Confirmed,
+        MinedConfirmedLocked | OneSidedConfirmedLocked | CoinbaseConfirmedLocked => TransactionDisplayStatus::Locked,
     }
 }
 
@@ -327,12 +331,14 @@ fn map_source(status: LegacyTransactionStatus) -> TransactionSource {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::indexing_slicing)]
     use chrono::NaiveDateTime;
 
     use super::*;
     use crate::transactions::displayed_transaction_processor::TransactionDirection;
 
     fn make_row(tx_id: u64, amount_signed: i64, direction: Option<i32>) -> ConsoleCompletedTxRow {
+        #[allow(clippy::cast_possible_wrap)]
         ConsoleCompletedTxRow {
             tx_id: tx_id as i64,
             source_address: vec![0u8; 35],
@@ -355,6 +361,7 @@ mod tests {
     }
 
     fn make_matched(hash_seed: u8, value: u64, height: u64) -> MatchedOutput {
+        #[allow(clippy::cast_lossless)]
         MatchedOutput {
             hash: FixedHash::from([hash_seed; 32]),
             value: MicroMinotari::from(value),
@@ -362,6 +369,7 @@ mod tests {
             mined_block_hash: FixedHash::from([0xBB; 32]),
             destination_output_id: hash_seed as i64,
             output_type: OutputType::Standard,
+            lock_height: 0,
         }
     }
 

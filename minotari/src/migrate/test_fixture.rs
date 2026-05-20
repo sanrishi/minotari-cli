@@ -7,7 +7,8 @@
 //! console wallet at the time of writing — if the upstream wallet ever
 //! changes its on-disk encryption format, these helpers must be updated in
 //! lockstep with `console_db.rs`.
-
+#![allow(clippy::indexing_slicing)]
+#![allow(clippy::cast_possible_wrap)]
 use std::path::Path;
 
 use anyhow::{Context, anyhow};
