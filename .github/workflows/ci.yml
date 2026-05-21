@@ -32,6 +32,9 @@ jobs:
       - name: Install cargo-machete
         run: cargo install cargo-machete
 
+      - name: Install cargo-lints
+        run: cargo install cargo-lints
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
@@ -46,6 +49,9 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run lints
+        run: cargo lints clippy --all-targets --all-features
 
       - name: Build
         run: cargo build --release --all-targets --all-features

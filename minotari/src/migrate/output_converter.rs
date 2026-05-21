@@ -11,6 +11,7 @@
 //! `OutputSql` struct, so that minotari-cli does not need to depend on the
 //! `tari_wallet` crate.
 
+use std::cmp::max;
 use std::str::FromStr;
 
 use anyhow::anyhow;
@@ -47,6 +48,7 @@ pub struct ConvertedOutput {
     /// the displayed-transactions builder so coinbase / burn / etc. outputs
     /// render with the correct icon and accounting.
     pub output_type: OutputType,
+    pub lock_height: u64,
 }
 
 /// The console wallet's `OutputStatus` enum, by integer value. We keep this
@@ -254,7 +256,9 @@ pub fn convert_output(row: &ConsoleOutputRow) -> Result<Option<ConvertedOutput>,
         output_hash,
         commitment.clone(),
     );
-
+    let maturity = row.maturity as u64;
+    let script_lock_height = row.script_lock_height as u64;
+    let lock_height = max(maturity, script_lock_height);
     Ok(Some(ConvertedOutput {
         wallet_output,
         output_hash,
@@ -267,6 +271,7 @@ pub fn convert_output(row: &ConsoleOutputRow) -> Result<Option<ConvertedOutput>,
         spent_in_tx_id: row.spent_in_tx_id.map(|v| v as u64),
         legacy_status,
         output_type: decode_output_type(row.output_type),
+        lock_height,
     }))
 }
 

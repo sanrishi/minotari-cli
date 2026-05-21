@@ -295,6 +295,7 @@ fn migrate_in_transaction(
             // displayed-transaction view can distinguish coinbase / burn /
             // standard outputs correctly. Previously hardcoded to Standard.
             output_type: converted.output_type,
+            lock_height: converted.lock_height,
         };
         if let Some(rx_id) = converted.received_in_tx_id {
             received_outputs_by_tx_id
@@ -334,6 +335,8 @@ fn migrate_in_transaction(
             let input_id = tx.last_insert_rowid();
             insert_debit_balance_change(tx, account_id, &converted, input_id, &memo_claims)?;
             report.balance_debit = report.balance_debit.saturating_add(converted.value);
+        } else {
+            //clippy
         }
     }
 
@@ -398,6 +401,7 @@ fn insert_converted_output(
 ) -> Result<i64, anyhow::Error> {
     let output_json =
         serde_json::to_string(&converted.wallet_output).context("Failed to serialise migrated WalletOutput as JSON")?;
+    #[allow(clippy::cast_possible_wrap)]
     let value_i64 = converted.value.as_u64() as i64;
     let height_i64 = i64::try_from(converted.mined_height).unwrap_or(i64::MAX);
     let mined_dt = DateTime::<Utc>::from_naive_utc_and_offset(converted.mined_timestamp, Utc);

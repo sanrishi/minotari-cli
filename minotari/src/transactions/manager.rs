@@ -725,8 +725,11 @@ impl TransactionSender {
             });
             debit += input.output.value();
         }
-
+        let mut lock_height = 0;
         for output in &signed_transaction.outputs {
+            if output.max_lock_height() > lock_height {
+                lock_height = output.max_lock_height();
+            }
             outputs.push(TransactionOutput {
                 hash: output.output_hash(),
                 amount: output.value(),
@@ -754,6 +757,7 @@ impl TransactionSender {
             .account_id(self.account.id)
             .direction(TransactionDirection::Outgoing)
             .status(TransactionDisplayStatus::Pending)
+            .lock_height(lock_height)
             .source(TransactionSource::OneSided)
             .credits_and_debits(credit, debit)
             .message(recipient.payment_id.clone())

@@ -445,15 +445,18 @@ impl TransactionMonitor {
 
         for mut displayed_tx in transactions_needing_update {
             let new_confirmations = current_chain_height.saturating_sub(displayed_tx.blockchain.block_height);
+            let locked_diff = displayed_tx.lock_height.saturating_sub(current_chain_height);
 
             if new_confirmations != displayed_tx.blockchain.confirmations {
                 displayed_tx.blockchain.confirmations = new_confirmations;
 
-                let new_status = self.determine_status_from_confirmations(new_confirmations);
+                let new_status = self.determine_status_from_confirmations(new_confirmations, locked_diff);
                 if displayed_tx.status != new_status
                     && matches!(
                         displayed_tx.status,
-                        TransactionDisplayStatus::Pending | TransactionDisplayStatus::Unconfirmed
+                        TransactionDisplayStatus::Pending
+                            | TransactionDisplayStatus::Unconfirmed
+                            | TransactionDisplayStatus::Locked
                     )
                 {
                     displayed_tx.status = new_status;
@@ -473,9 +476,13 @@ impl TransactionMonitor {
     /// - 0 confirmations: Pending
     /// - 1 to REQUIRED_CONFIRMATIONS-1: Unconfirmed
     /// - REQUIRED_CONFIRMATIONS or more: Confirmed
-    fn determine_status_from_confirmations(&self, confirmations: u64) -> TransactionDisplayStatus {
+    fn determine_status_from_confirmations(&self, confirmations: u64, locked_diff: u64) -> TransactionDisplayStatus {
         if confirmations >= self.required_confirmations {
-            TransactionDisplayStatus::Confirmed
+            if locked_diff > 0 {
+                TransactionDisplayStatus::Locked
+            } else {
+                TransactionDisplayStatus::Confirmed
+            }
         } else if confirmations > 0 {
             TransactionDisplayStatus::Unconfirmed
         } else {

@@ -8,7 +8,7 @@
 //! converter round-trips without depending on real chain state.
 
 #![allow(clippy::indexing_slicing)]
-
+#![allow(clippy::cast_possible_wrap)]
 use std::path::PathBuf;
 
 use rusqlite::{Connection, OptionalExtension, params};

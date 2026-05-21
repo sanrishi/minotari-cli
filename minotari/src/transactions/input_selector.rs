@@ -47,7 +47,6 @@ use rusqlite::Connection;
 use tari_transaction_components::{fee::Fee, tari_amount::MicroMinotari, weight::TransactionWeight};
 use thiserror::Error;
 
-use crate::db::get_total_unspent_balance;
 use crate::{
     db::{DbWalletOutput, WalletDbError, get_latest_scanned_tip_block_by_account},
     log::mask_amount,
@@ -277,27 +276,23 @@ impl InputSelector {
             amount = &*mask_amount(amount);
             "Selecting UTXOs"
         );
-        let tip = get_latest_scanned_tip_block_by_account(conn, self.account_id)?;
-        let min_height = tip
+        let tip_height = get_latest_scanned_tip_block_by_account(conn, self.account_id)?
             .map(|b| b.height)
-            .unwrap_or(0)
-            .saturating_sub(self.confirmation_window);
-        let (locked_amount, _unconfirmed_amount, _locked_and_unconfirmed_amount) =
-            crate::db::get_output_totals_for_account(conn, self.account_id)?;
-        // total_unspent_balance only counts outputs with status='UNSPENT', so locked
-        // outputs are already excluded. The available balance IS the unspent balance.
-        let total_unspent_balance: MicroMinotari = get_total_unspent_balance(conn, self.account_id)?.into();
-        let available_balance = total_unspent_balance;
-        // To detect "funds exist but are locked", compare against the total including locked.
-        let total_including_locked = total_unspent_balance + locked_amount;
-        if available_balance <= amount && total_including_locked >= amount {
-            let pending = locked_amount;
+            .unwrap_or(0);
+        let min_height = tip_height.saturating_sub(self.confirmation_window);
+        let totals = crate::db::get_output_totals_for_account(conn, self.account_id, tip_height)?;
+        // `totals.available` is the disjoint spendable bucket (confirmed, mature, unspent, not locked).
+        // `totals.unavailable` is locked + unconfirmed + immature — funds that exist but cannot be spent yet.
+        let available_balance = totals.available;
+        let pending = totals.unavailable;
+        let total_including_pending = available_balance.saturating_add(pending);
+        if available_balance <= amount && total_including_pending >= amount {
             warn!(
                 target: "audit",
                 available = &*mask_amount(available_balance),
                 pending = &*mask_amount(pending),
                 required = &*mask_amount(amount);
-                "Insufficient funds for transaction (pending confirmations)"
+                "Insufficient funds for transaction (pending confirmations or maturity)"
             );
             return Err(UtxoSelectionError::FundsPending {
                 available: available_balance,
@@ -305,7 +300,7 @@ impl InputSelector {
                 required: amount,
             });
         }
-        let uo = crate::db::fetch_unspent_outputs(conn, self.account_id, min_height)?;
+        let uo = crate::db::fetch_unspent_outputs(conn, self.account_id, min_height, tip_height)?;
 
         let features_and_scripts_byte_size = match estimated_output_size {
             Some(sz) => sz,
@@ -334,13 +329,13 @@ impl InputSelector {
         if selection_result.is_none() {
             warn!(
                 target: "audit",
-                available = &*mask_amount(total_unspent_balance),
+                available = &*mask_amount(available_balance),
                 required = &*mask_amount(amount);
                 "Insufficient funds for transaction"
             );
             // the total is not enough to cover fees. So we just need to notify the user its not enough so we add 1 to it.
             return Err(UtxoSelectionError::InsufficientFunds {
-                available: total_unspent_balance,
+                available: available_balance,
                 required: amount + MicroMinotari(1),
             });
         }

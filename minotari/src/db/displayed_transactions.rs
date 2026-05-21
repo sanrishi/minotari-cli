@@ -365,20 +365,22 @@ pub fn get_displayed_transactions_needing_confirmation_update(
 ) -> WalletDbResult<Vec<DisplayedTransaction>> {
     let pending_status = format!("{:?}", TransactionDisplayStatus::Pending).to_lowercase();
     let unconfirmed_status = format!("{:?}", TransactionDisplayStatus::Unconfirmed).to_lowercase();
+    let locked_status = format!("{:?}", TransactionDisplayStatus::Locked).to_lowercase();
 
     let mut stmt = conn.prepare_cached(
         r#"
         SELECT transaction_json
         FROM displayed_transactions
         WHERE account_id = :account_id
-          AND status IN (:s1, :s2)
+          AND status IN (:s1, :s2, :s3)
         "#,
     )?;
 
     let rows = stmt.query(named_params! {
         ":account_id": account_id,
         ":s1": pending_status,
-        ":s2": unconfirmed_status
+        ":s2": unconfirmed_status,
+        ":s3": locked_status
     })?;
 
     process_json_rows(from_rows::<TransactionJsonRow>(rows))

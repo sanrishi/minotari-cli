@@ -122,13 +122,15 @@ impl DisplayedTransactionProcessor {
                 continue;
             }
             let (balance_change, output) = new_credit.remove(i);
-            let (initial_status, initial_confirmations) = self.calculate_status_and_confirmations(output.height);
+            let (initial_status, initial_confirmations) =
+                self.calculate_status_and_confirmations(output.height, output.output.max_lock_height());
             let id = TxId::new_deterministic(self.view_key.as_bytes(), &output.output.output_hash());
             let memo = MemoInfo::from_output(&output.output);
             let display_tx = DisplayedTransactionBuilder::new()
                 .account_id(accumulator.account_id as Id)
                 .source(TransactionSource::Coinbase)
                 .status(initial_status)
+                .lock_height(output.output.max_lock_height())
                 .credits_and_debits(balance_change.balance_credit, 0.into())
                 .counterparty(None)
                 .blockchain_info(
@@ -170,7 +172,8 @@ impl DisplayedTransactionProcessor {
                 continue;
             }
             let (balance_change, output) = new_credit.remove(i);
-            let (initial_status, initial_confirmations) = self.calculate_status_and_confirmations(output.height);
+            let (initial_status, initial_confirmations) =
+                self.calculate_status_and_confirmations(output.height, output.output.max_lock_height());
             let id = TxId::new_deterministic(self.view_key.as_bytes(), &output.output.output_hash());
             let memo = MemoInfo::from_output(&output.output);
             let sent = output.output.payment_id().get_sent_hashes().unwrap_or_default();
@@ -179,6 +182,7 @@ impl DisplayedTransactionProcessor {
             let display_tx = DisplayedTransactionBuilder::new()
                 .account_id(accumulator.account_id as Id)
                 .source(TransactionSource::Transfer)
+                .lock_height(output.output.max_lock_height())
                 .status(initial_status)
                 .credits_and_debits(balance_change.balance_credit, 0.into())
                 .counterparty(other_party)
@@ -272,7 +276,8 @@ impl DisplayedTransactionProcessor {
                 used_inputs.push(index);
             }
             let sent = output.output.payment_id().get_sent_hashes().unwrap_or_default();
-            let (initial_status, initial_confirmations) = self.calculate_status_and_confirmations(output.height);
+            let (initial_status, initial_confirmations) =
+                self.calculate_status_and_confirmations(output.height, output.output.max_lock_height());
             let mut other_party = output.output.payment_id().get_sender_address();
             let id = TxId::new_deterministic(self.view_key.as_bytes(), &output.output.output_hash());
             let memo = MemoInfo::from_output(&output.output);
@@ -280,6 +285,7 @@ impl DisplayedTransactionProcessor {
                 .account_id(accumulator.account_id as Id)
                 .source(TransactionSource::Transfer)
                 .status(initial_status)
+                .lock_height(output.output.max_lock_height())
                 .blockchain_info(
                     accumulator.height,
                     output.mined_in_block_hash,
@@ -450,7 +456,8 @@ impl DisplayedTransactionProcessor {
             let (balance_change, output) = outputs
                 .get(*index)
                 .ok_or(ProcessorError::MissingError("Output index out of bounds".to_string()))?;
-            let (initial_status, initial_confirmations) = self.calculate_status_and_confirmations(output.height);
+            let (initial_status, initial_confirmations) =
+                self.calculate_status_and_confirmations(output.height, output.output.max_lock_height());
             let id = TxId::new_deterministic(self.view_key.as_bytes(), &output.output.output_hash());
             let memo = MemoInfo::from_output(&output.output);
             let sent = output.output.payment_id().get_sent_hashes().unwrap_or_default();
@@ -459,6 +466,7 @@ impl DisplayedTransactionProcessor {
                 .account_id(accumulator.account_id as Id)
                 .source(TransactionSource::Transfer)
                 .status(initial_status)
+                .lock_height(output.output.max_lock_height())
                 .credits_and_debits(balance_change.balance_credit, 0.into())
                 .counterparty(other_party)
                 .blockchain_info(
@@ -486,7 +494,7 @@ impl DisplayedTransactionProcessor {
         }
         for (balance_change, input) in inputs {
             let (initial_status, initial_confirmations) =
-                self.calculate_status_and_confirmations(input.mined_in_block_height);
+                self.calculate_status_and_confirmations(input.mined_in_block_height, 0);
             // these are unpaired inputs, so they must be outgoing transactions that don't have a change output
             let tx = DisplayedTransactionBuilder::new()
                 .account_id(accumulator.account_id as Id)
@@ -599,10 +607,18 @@ impl DisplayedTransactionProcessor {
         Ok((updated_transactions, new_transactions))
     }
 
-    fn calculate_status_and_confirmations(&self, mined_height: u64) -> (TransactionDisplayStatus, u64) {
+    fn calculate_status_and_confirmations(
+        &self,
+        mined_height: u64,
+        lock_height: u64,
+    ) -> (TransactionDisplayStatus, u64) {
         let confirmations = self.current_tip_height.saturating_sub(mined_height);
         let status = if confirmations >= self.req_confirmations {
-            TransactionDisplayStatus::Confirmed
+            if lock_height <= self.current_tip_height {
+                TransactionDisplayStatus::Confirmed
+            } else {
+                TransactionDisplayStatus::Locked
+            }
         } else {
             TransactionDisplayStatus::Unconfirmed
         };
