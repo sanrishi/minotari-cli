@@ -335,7 +335,7 @@ fn migrate_in_transaction(
             let input_id = tx.last_insert_rowid();
             insert_debit_balance_change(tx, account_id, &converted, input_id, &memo_claims)?;
             report.balance_debit = report.balance_debit.saturating_add(converted.value);
-        } else{
+        } else {
             //clippy
         }
     }
